@@ -5,14 +5,16 @@ In-progess individual project on unsupervised learning methods applied to online
 Methods used: Association Rule Mining, Kmeans Clustering, Hierarchical Clustering
 
 The dataset used is from the UCI Machine Learning Repository, the link is below:
-http://archive.ics.uci.edu/ml/datasets/Online+Retail
+http://archive.ics.uci.edu/ml/machine-learning-databases/00352/
+
+First download the data set "Online Retail.xlsx" from the link above save it as "OnlineRetail.csv". Put this is your working directory and the code below can be run.
 
 ```{r}
 source("RetailAnalysisFunctions.R") # contains the functions I wrote which are called from this notebook
 ```
 
 ```{r}
-retail_dataset <- read.csv("OnlineRetail.csv")
+retail_dataset <- read.csv("onlineRetail.csv")
 
 retail_dataset <- as_tibble(retail_dataset) # makes it easier to print the dataset and check columns
 
@@ -31,11 +33,11 @@ transactions<-convert_to_transactions(retail_dataset,description_start_end=c(0,0
 
 ```{r}
 
-itemFrequencyPlot(transactions, topN=10, col=brewer.pal(10,'Pastel1'), type="absolute", main="Item Frequency") 
+itemFrequencyPlot(transactions, topN=10, col=brewer.pal(8,'Pastel1'), type="absolute", main="Item Frequency") 
 ```
 
 ```{r}
-rules1 <- apriori(transactions, parameter = list(supp = 0.01, conf = 0.60)) 
+rules1 <- apriori(transactions, parameter = list(supp = 0.01, conf = 0.70)) 
 ```
 
 
@@ -101,7 +103,7 @@ clusters<-hclust(dist(customer_profiles_subset))
 clusterCut <- cutree(clusters, 3)
 
 ggplot(customer_profiles_subset, aes(avg_cost_of_transaction, total_transactions)) + 
-  geom_point(alpha = 0.4, size = 3.5) + geom_point(col = clusterCut) + 
+  geom_point() + geom_point(col = clusterCut) + 
   scale_color_manual(values = c('black', 'red', 'green'))
 ```
 
