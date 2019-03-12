@@ -98,8 +98,6 @@ customer_profiles_subset <- customer_profiles_no_outliers %>% select(avg_cost_of
 
 clusters<-hclust(dist(customer_profiles_subset)) 
 
-plot(clusters)
-
 clusterCut <- cutree(clusters, 3)
 
 ggplot(customer_profiles_subset, aes(avg_cost_of_transaction, total_transactions)) + 
