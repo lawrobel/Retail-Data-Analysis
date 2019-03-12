@@ -1,0 +1,109 @@
+Code Author: Lance Wrobel
+
+In-progess individual project on unsupervised learning methods applied to online retail data.
+
+Methods used: Association Rule Mining, Kmeans Clustering, Hierarchical Clustering
+
+The dataset used is from the UCI Machine Learning Repository, the link is below:
+http://archive.ics.uci.edu/ml/datasets/Online+Retail
+
+```{r}
+source("RetailAnalysisFunctions.R") # contains the functions I wrote which are called from this notebook
+```
+
+```{r}
+retail_dataset <- read.csv("OnlineRetail.csv")
+
+retail_dataset <- as_tibble(retail_dataset) # makes it easier to print the dataset and check columns
+
+colnames(retail_dataset)[[1]] <- "InvoiceNumber" # this column name was orginally read in wrong
+colnames(retail_dataset)[[5]] <- "InvoiceDateAndTime"
+```
+
+The first section of this R Notebook performs a Association Rule Mining Analysis.
+
+The following code converts the retail dataset into a transactions object which can be used in the 'arules' package. This function uses the entire product decription as the item obtained in the transaction.
+```{r}
+transactions<-convert_to_transactions(retail_dataset,description_start_end=c(0,0)) 
+```
+
+
+
+```{r}
+
+itemFrequencyPlot(transactions, topN=10, col=brewer.pal(10,'Pastel1'), type="absolute", main="Item Frequency") 
+```
+
+```{r}
+rules1 <- apriori(transactions, parameter = list(supp = 0.01, conf = 0.60)) 
+```
+
+
+
+```{r}
+plot(rules1, engine = "htmlwidget")
+```
+
+```{r}
+plot(rules1, method = "graph", engine = "htmlwidget")
+```
+
+```{r}
+transactions_2<-convert_to_transactions(retail_dataset,description_start_end=c(3,6))
+rules2 <- apriori(transactions_2, parameter = list(supp = 0.005, conf = 0.70)) 
+plot(rules2, method = "graph", engine = "htmlwidget")
+```
+
+The next section of this R notebook performs Kmeans and Hierarchical Clustering for customer segmentation.
+
+The first step is to create a customer profile vector for each customer based off their purchasing habits. This code chunk contains only some basic features as a start. The following features are used per customer: total number of transactions, average quantity purchased, average transaction cost, and the number of distinct weeks a transaction was placed (for a consistancy feature). 
+```{r}
+retail_dataset_mutated <- retail_dataset %>% mutate(transaction_cost = UnitPrice*Quantity) %>%
+  separate(InvoiceDateAndTime, c("InvoiceDate","InvoiceTime")," ")
+
+retail_dataset_mutated$InvoiceDate <- as.Date(retail_dataset_mutated$InvoiceDate,"%m/%d/%Y")
+
+retail_dataset_mutated$DateFirstOrder <- with(retail_dataset_mutated, ave(InvoiceDate,CustomerID, FUN = min))
+retail_dataset_mutated$DateLastOrder <- with(retail_dataset_mutated, ave(InvoiceDate,CustomerID, FUN = max))
+
+retail_dataset_mutated$week <- week(retail_dataset_mutated$InvoiceDate)
+
+customer_profiles <- retail_dataset_mutated %>% group_by(CustomerID) %>% 
+  summarise(avg_cost_of_transaction = mean(transaction_cost),avg_quantity_bought = mean(Quantity),total_transactions = n(),
+            distinct_weeks_of_a_transaction = n_distinct(week)) %>% select(-CustomerID)
+  
+```
+
+Focus in on customers who don't spend very large amounts or buy very large quantities.
+```{r}
+customer_profiles_no_outliers<-customer_profiles %>% filter(between(avg_quantity_bought, 0,50), between(avg_cost_of_transaction,0, 60),between(total_transactions, 1,50))
+```
+
+
+Below I use Kmeans clustering with k=4 based on the customer profiles.
+```{r}
+k_means <- kmeans(customer_profiles_no_outliers,4)
+
+plot(k_means,data=customer_profiles_no_outliers)
+```
+
+
+I now do some Hierarchical Clustering using only average cost of transaction and number of total transactions as customer profile features.
+
+```{r}
+library(stats)
+
+# dont use consistancy feature or quantity feature for visualization purposes
+customer_profiles_subset <- customer_profiles_no_outliers %>% select(avg_cost_of_transaction, total_transactions)
+
+clusters<-hclust(dist(customer_profiles_subset)) 
+
+plot(clusters)
+
+clusterCut <- cutree(clusters, 3)
+
+ggplot(customer_profiles_subset, aes(avg_cost_of_transaction, total_transactions)) + 
+  geom_point(alpha = 0.4, size = 3.5) + geom_point(col = clusterCut) + 
+  scale_color_manual(values = c('black', 'red', 'green'))
+```
+
